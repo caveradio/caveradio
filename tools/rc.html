@@ -1,0 +1,303 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Автономний RC-калькулятор</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 480px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #1a1a1a;
+            text-align: center;
+            border-bottom: 2px solid #eaeaea;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+        input, select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        input[type="number"] {
+            flex: 1;
+        }
+        select {
+            width: 100px;
+            background-color: #fafafa;
+        }
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-weight: normal;
+        }
+        .result-box {
+            background: #eef9ff;
+            border-left: 4px solid #0076ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        .schematic {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background: #fafafa;
+            border-radius: 8px;
+            border: 1px dashed #ddd;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>RC Фільтр Калькулятор</h2>
+    
+    <div class="form-group">
+        <label>Що розраховуємо?</label>
+        <div class="radio-group">
+            <label class="radio-label"><input type="radio" name="calcMode" value="f" checked onchange="updateInputs()"> Частоту (Fc)</label>
+            <label class="radio-label"><input type="radio" name="calcMode" value="r" onchange="updateInputs()"> Опір (R)</label>
+            <label class="radio-label"><input type="radio" name="calcMode" value="c" onchange="updateInputs()"> Ємність (C)</label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Тип фільтра для схеми</label>
+        <div class="radio-group">
+            <label class="radio-label"><input type="radio" name="filterType" value="LPF" checked onchange="drawSchematic()"> ФНЧ (Low-Pass)</label>
+            <label class="radio-label"><input type="radio" name="filterType" value="HPF" onchange="drawSchematic()"> ФВЧ (High-Pass)</label>
+        </div>
+    </div>
+
+    <div class="schematic" id="schematic-area">
+        <!-- SVG Schematic dynamic load -->
+    </div>
+
+    <div class="form-group" id="grp-f" style="display:none;">
+        <label for="val-f">Частота зрізу (Fc)</label>
+        <div class="input-wrapper">
+            <input type="number" id="val-f" value="1000" oninput="calculate()">
+            <select id="unit-f" onchange="calculate()">
+                <option value="1">Гц</option>
+                <option value="1000" selected>кГц</option>
+                <option value="1000000">МГц</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group" id="grp-r">
+        <label for="val-r">Опір резистора (R)</label>
+        <div class="input-wrapper">
+            <input type="number" id="val-r" value="10" oninput="calculate()">
+            <select id="unit-r" onchange="calculate()">
+                <option value="1">Ом</option>
+                <option value="1000" selected>кОм</option>
+                <option value="1000000">МОм</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group" id="grp-c">
+        <label for="val-c">Ємність конденсатора (C)</label>
+        <div class="input-wrapper">
+            <input type="number" id="val-c" value="10" oninput="calculate()">
+            <select id="unit-c" onchange="calculate()">
+                <option value="1e-12">пФ</option>
+                <option value="1e-9" selected>нФ</option>
+                <option value="1e-6">мкФ</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="result-box">
+        <strong>Результат розрахунку:</strong>
+        <div id="result-text" style="margin-top: 8px; font-weight: bold; color: #0076ff; font-size: 18px;">
+            --
+        </div>
+    </div>
+</div>
+
+<script>
+    function getCalcMode() {
+        return document.querySelector('input[name="calcMode"]:checked').value;
+    }
+
+    function getFilterType() {
+        return document.querySelector('input[name="filterType"]:checked').value;
+    }
+
+    function updateInputs() {
+        const mode = getCalcMode();
+        document.getElementById('grp-f').style.display = mode === 'f' ? 'none' : 'block';
+        document.getElementById('grp-r').style.display = mode === 'r' ? 'none' : 'block';
+        document.getElementById('grp-c').style.display = mode === 'c' ? 'none' : 'block';
+        calculate();
+    }
+
+    function drawSchematic() {
+        const type = getFilterType();
+        const area = document.getElementById('schematic-area');
+        
+        const lpfSvg = `
+            <svg width="240" height="100" viewBox="0 0 240 100" style="font-family: Arial, Helvetica, sans-serif; font-size: 12px;">
+                <!-- Line In -->
+                <path d="M 10 30 L 50 30" stroke="#333" stroke-width="2"/>
+                <text x="10" y="22" fill="#666">Вхід</text>
+                <!-- Resistor -->
+                <rect x="50" y="20" width="60" height="20" fill="none" stroke="#333" stroke-width="2"/>
+                <text x="75" y="15" font-weight="bold">R</text>
+                <!-- Connection -->
+                <path d="M 110 30 L 180 30" stroke="#333" stroke-width="2"/>
+                <circle cx="150" cy="30" r="3" fill="#333"/>
+                <!-- Capacitor -->
+                <path d="M 150 30 L 150 45" stroke="#333" stroke-width="2"/>
+                <path d="M 135 45 L 165 45" stroke="#333" stroke-width="3"/>
+                <path d="M 135 51 L 165 51" stroke="#333" stroke-width="3"/>
+                <path d="M 150 51 L 150 70" stroke="#333" stroke-width="2"/>
+                <text x="172" y="53" font-weight="bold">C</text>
+                <!-- Ground -->
+                <path d="M 130 70 L 170 70" stroke="#333" stroke-width="2"/>
+                <path d="M 138 75 L 162 75" stroke="#333" stroke-width="2"/>
+                <path d="M 146 80 L 154 80" stroke="#333" stroke-width="2"/>
+                <!-- Line Out -->
+                <text x="190" y="22" fill="#666">Вихід</text>
+                <path d="M 180 30 L 230 30" stroke="#333" stroke-width="2"/>
+            </svg>
+        `;
+
+        const hpfSvg = `
+            <svg width="240" height="100" viewBox="0 0 240 100" style="font-family: Arial, Helvetica, sans-serif; font-size: 12px;">
+                <!-- Line In -->
+                <path d="M 10 30 L 65 30" stroke="#333" stroke-width="2"/>
+                <text x="10" y="22" fill="#666">Вхід</text>
+                <!-- Capacitor -->
+                <path d="M 65 15 L 65 45" stroke="#333" stroke-width="3"/>
+                <path d="M 71 15 L 71 45" stroke="#333" stroke-width="3"/>
+                <path d="M 71 30 L 150 30" stroke="#333" stroke-width="2"/>
+                <text x="62" y="10" font-weight="bold">C</text>
+                <circle cx="110" cy="30" r="3" fill="#333"/>
+                <!-- Resistor -->
+                <path d="M 110 30 L 110 45" stroke="#333" stroke-width="2"/>
+                <rect x="100" y="45" width="20" height="40" fill="none" stroke="#333" stroke-width="2"/>
+                <path d="M 110 85 L 110 90" stroke="#333" stroke-width="2"/>
+                <text x="126" y="68" font-weight="bold">R</text>
+                <!-- Ground -->
+                <path d="M 95 90 L 125 90" stroke="#333" stroke-width="2"/>
+                <path d="M 101 94 L 119 94" stroke="#333" stroke-width="2"/>
+                <path d="M 107 98 L 113 98" stroke="#333" stroke-width="2"/>
+                <!-- Line Out -->
+                <text x="190" y="22" fill="#666">Вихід</text>
+                <path d="M 150 30 L 230 30" stroke="#333" stroke-width="2"/>
+            </svg>
+        `;
+
+        area.innerHTML = type === 'LPF' ? lpfSvg : hpfSvg;
+    }
+
+    function calculate() {
+        const mode = getCalcMode();
+        const resultDiv = document.getElementById('result-text');
+
+        const f_val = parseFloat(document.getElementById('val-f').value);
+        const f_mult = parseFloat(document.getElementById('unit-f').value);
+        const r_val = parseFloat(document.getElementById('val-r').value);
+        const r_mult = parseFloat(document.getElementById('unit-r').value);
+        const c_val = parseFloat(document.getElementById('val-c').value);
+        const c_mult = parseFloat(document.getElementById('unit-c').value);
+
+        if (mode === 'f') {
+            const r = r_val * r_mult;
+            const c = c_val * c_mult;
+            if (r > 0 && c > 0) {
+                const f = 1 / (2 * Math.PI * r * c);
+                if (f >= 1000000) {
+                    resultDiv.innerHTML = `Fc = ${(f / 1000000).toFixed(3)} МГц`;
+                } else if (f >= 1000) {
+                    resultDiv.innerHTML = `Fc = ${(f / 1000).toFixed(3)} кГц`;
+                } else {
+                    resultDiv.innerHTML = `Fc = ${f.toFixed(2)} Гц`;
+                }
+            } else {
+                resultDiv.innerHTML = "Введіть значення R та C";
+            }
+        } 
+        else if (mode === 'r') {
+            const f = f_val * f_mult;
+            const c = c_val * c_mult;
+            if (f > 0 && c > 0) {
+                const r = 1 / (2 * Math.PI * f * c);
+                if (r >= 1000000) {
+                    resultDiv.innerHTML = `R = ${(r / 1000000).toFixed(3)} МОм`;
+                } else if (r >= 1000) {
+                    resultDiv.innerHTML = `R = ${(r / 1000).toFixed(3)} кОм`;
+                } else {
+                    resultDiv.innerHTML = `R = ${r.toFixed(1)} Ом`;
+                }
+            } else {
+                resultDiv.innerHTML = "Введіть значення Fc та C";
+            }
+        } 
+        else if (mode === 'c') {
+            const f = f_val * f_mult;
+            const r = r_val * r_mult;
+            if (f > 0 && r > 0) {
+                const c = 1 / (2 * Math.PI * f * r);
+                if (c >= 0.000001) {
+                    resultDiv.innerHTML = `C = ${(c * 1000000).toFixed(3)} мкФ`;
+                } else if (c >= 0.000000001) {
+                    resultDiv.innerHTML = `C = ${(c * 1000000000).toFixed(3)} нФ`;
+                } else {
+                    resultDiv.innerHTML = `C = ${(c * 1000000000000).toFixed(1)} пФ`;
+                }
+            } else {
+                resultDiv.innerHTML = "Введіть значення Fc та R";
+            }
+        }
+    }
+
+    // Init
+    updateInputs();
+    drawSchematic();
+</script>
+
+</body>
+</html>

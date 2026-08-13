@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Інтерактивний калькулятор LC-фільтрів та контурів</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons for UI styling -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for better visual integration */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.4);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 0.6);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200">
+
+<div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-8 text-center md:text-left flex flex-col md:flex-row md:justify-between md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+        <div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                <i class="fa-solid fa-wave-square mr-2"></i>Калькулятор LC-фільтрів
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Професійний інструмент проектування та аналізу коливальних контурів і фільтрів</p>
+        </div>
+        <div class="flex items-center justify-center gap-2">
+            <button onclick="toggleDarkMode()" class="p-2.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition" title="Змінити тему">
+                <i id="theme-icon" class="fa-solid fa-moon text-slate-600 dark:text-amber-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <div class="grid grid-cols-3 gap-2 p-1 bg-slate-200/60 dark:bg-slate-800/60 rounded-xl mb-6">
+        <button id="tab-resonance" onclick="switchTab('resonance')" class="py-3 px-2 text-center rounded-lg font-medium text-sm transition flex flex-col sm:flex-row items-center justify-center gap-2 bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm">
+            <i class="fa-solid fa-circle-nodes"></i>
+            <span>LC-Резонанс</span>
+        </button>
+        <button id="tab-lpf" onclick="switchTab('lpf')" class="py-3 px-2 text-center rounded-lg font-medium text-sm transition flex flex-col sm:flex-row items-center justify-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50">
+            <i class="fa-solid fa-arrow-trend-down"></i>
+            <span>Фільтр ФНЧ</span>
+        </button>
+        <button id="tab-hpf" onclick="switchTab('hpf')" class="py-3 px-2 text-center rounded-lg font-medium text-sm transition flex flex-col sm:flex-row items-center justify-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50">
+            <i class="fa-solid fa-arrow-trend-up"></i>
+            <span>Фільтр ФВЧ</span>
+        </button>
+    </div>
+
+    <!-- MAIN GRID LAYOUT -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- LEFT COLUMN: INPUT CONTROLS -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Contextual Controls Card -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md border border-slate-100 dark:border-slate-700/50">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3 text-slate-900 dark:text-white">
+                    <i class="fa-solid fa-sliders text-blue-500"></i>Параметри розрахунку
+                </h2>
+
+                <!-- 1. RESONANCE TAB CONTROLS -->
+                <div id="controls-resonance" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Що розраховуємо?</label>
+                        <select id="resonance-target" onchange="updateResonanceInputs()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="frequency">Резонансну частоту (f₀)</option>
+                            <option value="inductance">Необхідну індуктивність (L)</option>
+                            <option value="capacitance">Необхідну ємність (C)</option>
+                        </select>
+                    </div>
+
+                    <!-- Frequency Input Row -->
+                    <div id="row-res-freq" class="hidden">
+                        <label class="block text-sm font-medium mb-1 text-slate-600 dark:text-slate-300">Резонансна частота (f₀)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="res-freq-val" value="1000" step="any" oninput="calculateResonance()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <select id="res-freq-unit" onchange="calculateResonance()" class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-2 text-xs font-medium focus:ring-2 focus:ring-blue-500">
+                                <option value="1">Гц</option>
+                                <option value="1000" selected>кГц</option>
+                                <option value="1000000">МГц</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Inductance Input Row -->
+                    <div id="row-res-ind">
+                        <label class="block text-sm font-medium mb-1 text-slate-600 dark:text-slate-300">Індуктивність (L)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="res-ind-val" value="10" step="any" oninput="calculateResonance()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <select id="res-ind-unit" onchange="calculateResonance()" class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-2 text-xs font-medium focus:ring-2 focus:ring-blue-500">
+                                <option value="1e-9">нГн</option>
+                                <option value="1e-6" selected>мкГн</option>
+                                <option value="1e-3">мГн</option>
+                                <option value="1">Гн</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Capacitance Input Row -->
+                    <div id="row-res-cap">
+                        <label class="block text-sm font-medium mb-1 text-slate-600 dark:text-slate-300">Ємність (C)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="res-cap-val" value="100" step="any" oninput="calculateResonance()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <select id="res-cap-unit" onchange="calculateResonance()" class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-2 text-xs font-medium focus:ring-2 focus:ring-blue-500">
+                                <option value="1e-12">пФ</option>
+                                <option value="1e-9" selected>нФ</option>
+                                <option value="1e-6">мкФ</option>
+                                <option value="1e-3">мФ</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. FILTER TABS CONTROLS (LPF & HPF combined UI, toggle values) -->
+                <div id="controls-filter" class="hidden space-y-5">
+                    <div class="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-100/50 dark:border-blue-900/30 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Швидкий синтез фільтра</span>
+                            <span class="text-[10px] text-slate-400 dark:text-slate-500">За типом Баттерворта</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Цільова частота зрізу (Fc)</label>
+                                <div class="flex gap-1">
+                                    <input type="number" id="synth-fc" value="20" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-xs outline-none">
+                                    <select id="synth-fc-unit" class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1 text-[10px]">
+                                        <option value="1">Гц</option>
+                                        <option value="1000" selected>кГц</option>
+                                        <option value="1000000">МГц</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Опір навантаження (R)</label>
+                                <div class="flex gap-1">
+                                    <input type="number" id="synth-r" value="50" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-xs outline-none">
+                                    <span class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1.5 py-1 text-[10px] flex items-center font-bold">Ω</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="synthesizeFilter()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 px-3 rounded text-xs transition duration-150">
+                            Застосувати синтез
+                        </button>
+                    </div>
+
+                    <div class="border-t border-slate-100 dark:border-slate-700 pt-4 space-y-4">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Аналіз поточних значень</h3>
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-slate-600 dark:text-slate-300">Номінал індуктивності (L)</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="filter-ind-val" value="5.6" step="any" oninput="calculateFilter()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <select id="filter-ind-unit" onchange="calculateFilter()" class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-2 text-xs font-medium focus:ring-2 focus:ring-blue-500">
+                                    <option value="1e-9">нГн</option>
+                                    <option value="1e-6" selected>мкГн</option>
+                                    <option value="1e-3">мГн</option>
+                                    <option value="1">Гн</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-slate-600 dark:text-slate-300">Номінал ємності (C)</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="filter-cap-val" value="2.2" step="any" oninput="calculateFilter()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <select id="filter-cap-unit" onchange="calculateFilter()" class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-2 text-xs font-medium focus:ring-2 focus:ring-blue-500">
+                                    <option value="1e-12">пФ</option>
+                                    <option value="1e-9" selected>нФ</option>
+                                    <option value="1e-6">мкФ</option>
+                                    <option value="1e-3">мФ</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-slate-600 dark:text-slate-300">Опір навантаження (R_load)</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="filter-r-val" value="50" step="any" oninput="calculateFilter()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <span class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3.5 py-2 text-sm flex items-center font-bold">Ω</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Informational Quick Reference Panel -->
+            <div class="bg-slate-100 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200/50 dark:border-slate-700/30 text-xs text-slate-500 dark:text-slate-400">
+                <h3 class="font-bold mb-2 text-slate-700 dark:text-slate-300 flex items-center gap-1"><i class="fa-solid fa-graduation-cap"></i> Базові формули:</h3>
+                <ul class="space-y-1.5 list-disc pl-4">
+                    <li>Резонансна частота: <span class="font-mono text-blue-600 dark:text-blue-400">f₀ = 1 / (2π · √(L · C))</span></li>
+                    <li>Добротність (Q) фільтра: <span class="font-mono text-blue-600 dark:text-blue-400">Q = R · √(C / L)</span></li>
+                    <li>Хвильовий опір: <span class="font-mono text-blue-600 dark:text-blue-400">Z₀ = √(L / C)</span></li>
+                    <li>Зсув фази: <span class="font-mono">θ = -atan2(2πfL/R, 1 - (2πf)²LC)</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: RESULTS & GRAPHICS -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Result Panel Card -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md border border-slate-100 dark:border-slate-700/50">
+                <h2 class="text-xl font-bold mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3 text-slate-900 dark:text-white">
+                    <span class="flex items-center gap-2">
+                        <i class="fa-solid fa-square-poll-horizontal text-emerald-500"></i>Результати розрахунку
+                    </span>
+                    <button onclick="copyToClipboard()" class="text-xs text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 flex items-center gap-1 transition" title="Копіювати результати">
+                        <i class="fa-regular fa-copy"></i> Скопіювати
+                    </button>
+                </h2>
+
+                <!-- Main dynamic value display -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl border border-emerald-100/50 dark:border-emerald-900/30">
+                        <span id="primary-result-label" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Резонансна частота (f₀)</span>
+                        <div id="primary-result-value" class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight">--</div>
+                    </div>
+                    <div class="p-4 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
+                        <span id="secondary-result-label" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Хвильовий опір (Z₀)</span>
+                        <div id="secondary-result-value" class="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 tracking-tight">--</div>
+                    </div>
+                </div>
+
+                <!-- Secondary physical metrics -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl text-xs">
+                    <div>
+                        <span class="block text-slate-400 mb-1">Згасання (α)</span>
+                        <span id="val-damping" class="font-mono font-bold text-slate-700 dark:text-slate-300">--</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 mb-1">Добротність (Q)</span>
+                        <span id="val-q" class="font-mono font-bold text-slate-700 dark:text-slate-300">--</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 mb-1">Частота зрізу (-3 дБ)</span>
+                        <span id="val-cutoff-exact" class="font-mono font-bold text-slate-700 dark:text-slate-300">--</span>
+                    </div>
+                </div>
+
+                <!-- Dynamic Schematic representation (SVG) -->
+                <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 mb-6">
+                    <span class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 text-center">Електрична схема LC-фільтра</span>
+                    <div id="schematic-container" class="flex justify-center items-center">
+                        <!-- Dynamic SVG injected here -->
+                    </div>
+                </div>
+
+                <!-- Interactive Frequency Response Chart -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Графік АЧХ та ФЧХ (Характеристики)</span>
+                        <div class="flex gap-2">
+                            <button id="chart-btn-magnitude" onclick="setChartType('magnitude')" class="px-2 py-1 text-[10px] font-bold rounded bg-blue-600 text-white">АЧХ (дБ)</button>
+                            <button id="chart-btn-phase" onclick="setChartType('phase')" class="px-2 py-1 text-[10px] font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">ФЧХ (°)</button>
+                        </div>
+                    </div>
+                    <div class="relative bg-slate-50 dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <!-- Custom high fidelity canvas chart -->
+                        <canvas id="bode-chart" class="w-full h-64 block"></canvas>
+                        <!-- Dynamic Info-tooltip overlay -->
+                        <div id="chart-tooltip" class="absolute pointer-events-none bg-slate-950/90 text-white text-[11px] p-2 rounded-lg hidden shadow-xl border border-slate-700 leading-normal">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // System Theme Manager
+    let isDark = false;
+    
+    function initTheme() {
+        if (localStorage.getItem('theme') === 'dark' || 
+            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            isDark = true;
+            document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+        } else {
+            document.documentElement.classList.remove('dark');
+            isDark = false;
+            document.getElementById('theme-icon').className = 'fa-solid fa-moon';
+        }
+    }
+
+    function toggleDarkMode() {
+        if (isDark) {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+            document.getElementById('theme-icon').className = 'fa-solid fa-moon';
+            isDark = false;
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+            document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+            isDark = true;
+        }
+        // Redraw canvas with new colors
+        drawChart();
+    }
+
+    // Active Application States
+    let currentTab = 'resonance'; // resonance, lpf, hpf
+    let chartType = 'magnitude'; // magnitude, phase
+
+    // Cache of active calculated values
+    let resultsCache = {
+        f0: 0,
+        z0: 0,
+        q: 0,
+        alpha: 0,
+        exactCutoff: 0,
+        type: 'resonance',
+        L: 10e-6,
+        C: 100e-9,
+        R: 50
+    };
+
+    function switchTab(tab) {
+        currentTab = tab;
+        
+        // Handle Tab Button Styling updates
+        const tabIds = ['resonance', 'lpf', 'hpf'];
+        tabIds.forEach(id => {
+            const btn = document.getElementById(`tab-${id}`);
+            if (id === tab) {
+                btn.className = "py-3 px-2 text-center rounded-lg font-medium text-sm transition flex flex-col sm:flex-row items-center justify-center gap-2 bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm";
+            } else {
+                btn.className = "py-3 px-2 text-center rounded-lg font-medium text-sm transition flex flex-col sm:flex-row items-center justify-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50";
+            }
+        });
+
+        // Hide and show input control groups
+        if (tab === 'resonance') {
+            document.getElementById('controls-resonance').classList.remove('hidden');
+            document.getElementById('controls-filter').classList.add('hidden');
+            document.getElementById('primary-result-label').innerText = "Резонансна частота (f₀)";
+        } else {
+            document.getElementById('controls-resonance').classList.add('hidden');
+            document.getElementById('controls-filter').classList.remove('hidden');
+            document.getElementById('primary-result-label').innerText = "Частота зрізу (f_cutoff)";
+        }
+
+        // Trigger dynamic updates
+        if (tab === 'resonance') {
+            calculateResonance();
+        } else {
+            calculateFilter();
+        }
+    }
+
+    function setChartType(type) {
+        chartType = type;
+        const magBtn = document.getElementById('chart-btn-magnitude');
+        const phaseBtn = document.getElementById('chart-btn-phase');
+
+        if (type === 'magnitude') {
+            magBtn.className = "px-2 py-1 text-[10px] font-bold rounded bg-blue-600 text-white";
+            phaseBtn.className = "px-2 py-1 text-[10px] font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300";
+        } else {
+            phaseBtn.className = "px-2 py-1 text-[10px] font-bold rounded bg-blue-600 text-white";
+            magBtn.className = "px-2 py-1 text-[10px] font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300";
+        }
+        drawChart();
+    }
+
+    function updateResonanceInputs() {
+        const target = document.getElementById('resonance-target').value;
+        const rowFreq = document.getElementById('row-res-freq');
+        const rowInd = document.getElementById('row-res-ind');
+        const rowCap = document.getElementById('row-res-cap');
+
+        rowFreq.classList.add('hidden');
+        rowInd.classList.add('hidden');
+        rowCap.classList.add('hidden');
+
+        if (target === 'frequency') {
+            rowInd.classList.remove('hidden');
+            rowCap.classList.remove('hidden');
+        } else if (target === 'inductance') {
+            rowFreq.classList.remove('hidden');
+            rowCap.classList.remove('hidden');
+        } else if (target === 'capacitance') {
+            rowFreq.classList.remove('hidden');
+            rowInd.classList.remove('hidden');
+        }
+        calculateResonance();
+    }
+
+    function formatNumber(num, unit = "") {
+        if (num === null || isNaN(num) || !isFinite(num)) return "--";
+        if (num >= 1e9) return `${(num / 1e9).toFixed(3).replace(/\.?0+$/, '')} Г${unit}`;
+        if (num >= 1e6) return `${(num / 1e6).toFixed(3).replace(/\.?0+$/, '')} М${unit}`;
+        if (num >= 1e3) return `${(num / 1e3).toFixed(3).replace(/\.?0+$/, '')} к${unit}`;
+        if (num >= 1) return `${num.toFixed(3).replace(/\.?0+$/, '')} ${unit}`;
+        if (num >= 1e-3) return `${(num * 1e3).toFixed(3).replace(/\.?0+$/, '')} м${unit}`;
+        if (num >= 1e-6) return `${(num * 1e6).toFixed(3).replace(/\.?0+$/, '')} мк${unit}`;
+        if (num >= 1e-9) return `${(num * 1e9).toFixed(3).replace(/\.?0+$/, '')} н${unit}`;
+        return `${(num * 1e12).toFixed(3).replace(/\.?0+$/, '')} п${unit}`;
+    }
+
+    function calculateResonance() {
+        const target = document.getElementById('resonance-target').value;
+        let l_val = parseFloat(document.getElementById('res-ind-val').value) * parseFloat(document.getElementById('res-ind-unit').value);
+        let c_val = parseFloat(document.getElementById('res-cap-val').value) * parseFloat(document.getElementById('res-cap-unit').value);
+        let f_val = parseFloat(document.getElementById('res-freq-val').value) * parseFloat(document.getElementById('res-freq-unit').value);
+
+        let calculatedFreq = 0;
+        let calculatedInd = 0;
+        let calculatedCap = 0;
+
+        if (target === 'frequency') {
+            if (l_val > 0 && c_val > 0) {
+                calculatedFreq = 1 / (2 * Math.PI * Math.sqrt(l_val * c_val));
+                document.getElementById('primary-result-value').innerHTML = formatNumber(calculatedFreq, "Гц");
+                document.getElementById('secondary-result-value').innerHTML = formatNumber(Math.sqrt(l_val / c_val), "Ω");
+                
+                resultsCache.f0 = calculatedFreq;
+                resultsCache.L = l_val;
+                resultsCache.C = c_val;
+            } else {
+                document.getElementById('primary-result-value').innerHTML = "Помилка";
+            }
+            document.getElementById('secondary-result-label').innerText = "Хвильовий опір (Z₀)";
+        } else if (target === 'inductance') {
+            if (f_val > 0 && c_val > 0) {
+                calculatedInd = 1 / (4 * Math.PI * Math.PI * f_val * f_val * c_val);
+                document.getElementById('primary-result-value').innerHTML = formatNumber(calculatedInd, "Гн");
+                document.getElementById('secondary-result-value').innerHTML = formatNumber(Math.sqrt(calculatedInd / c_val), "Ω");
+                
+                resultsCache.f0 = f_val;
+                resultsCache.L = calculatedInd;
+                resultsCache.C = c_val;
+            } else {
+                document.getElementById('primary-result-value').innerHTML = "Помилка";
+            }
+            document.getElementById('secondary-result-label').innerText = "Хвильовий опір (Z₀)";
+        } else if (target === 'capacitance') {
+            if (f_val > 0 && l_val > 0) {
+                calculatedCap = 1 / (4 * Math.PI * Math.PI * f_val * f_val * l_val);
+                document.getElementById('primary-result-value').innerHTML = formatNumber(calculatedCap, "Ф");
+                document.getElementById('secondary-result-value').innerHTML = formatNumber(Math.sqrt(l_val / calculatedCap), "Ω");
+                
+                resultsCache.f0 = f_val;
+                resultsCache.L = l_val;
+                resultsCache.C = calculatedCap;
+            } else {
+                document.getElementById('primary-result-value').innerHTML = "Помилка";
+            }
+            document.getElementById('secondary-result-label').innerText = "Хвильовий опір (Z₀)";
+        }
+
+        // Standard 50 Ohm Load assumptions for simple resonant reference values
+        const dummyR = 50; 
+        resultsCache.R = dummyR;
+        resultsCache.z0 = Math.sqrt(resultsCache.L / resultsCache.C);
+        resultsCache.q = resultsCache.z0 / dummyR; // series-equivalent ref
+        resultsCache.alpha = 1 / (2 * resultsCache.q);
+        resultsCache.exactCutoff = resultsCache.f0;
+        resultsCache.type = 'resonance';
+
+        // Update secondary labels
+        document.getElementById('val-damping').innerText = resultsCache.alpha.toFixed(4);
+        document.getElementById('val-q').innerText = resultsCache.q.toFixed(4);
+        document.getElementById('val-cutoff-exact').innerText = formatNumber(resultsCache.f0, "Гц");
+
+        drawSchematic();
+        drawChart();
+    }
+
+    function synthesizeFilter() {
+        const fc = parseFloat(document.getElementById('synth-fc').value) * parseFloat(document.getElementById('synth-fc-unit').value);
+        const r = parseFloat(document.getElementById('synth-r').value);
+
+        if (fc <= 0 || r <= 0) return;
+
+        // Ideal 2nd-order Butterworth LC coefficients (L = sqrt(2)*R/wc, C = sqrt(2)/(wc*R))
+        const wc = 2 * Math.PI * fc;
+        const l_synth = (Math.sqrt(2) * r) / wc;
+        const c_synth = Math.sqrt(2) / (wc * r);
+
+        // Inject back into inputs
+        document.getElementById('filter-ind-val').value = (l_synth * 1e6).toFixed(4);
+        document.getElementById('filter-ind-unit').value = "1e-6"; // set to microhenries
+        
+        document.getElementById('filter-cap-val').value = (c_synth * 1e9).toFixed(4);
+        document.getElementById('filter-cap-unit').value = "1e-9"; // set to nanofarads
+
+        document.getElementById('filter-r-val').value = r;
+
+        calculateFilter();
+    }
+
+    function calculateFilter() {
+        let l_val = parseFloat(document.getElementById('filter-ind-val').value) * parseFloat(document.getElementById('filter-ind-unit').value);
+        let c_val = parseFloat(document.getElementById('filter-cap-val').value) * parseFloat(document.getElementById('filter-cap-unit').value);
+        let r_val = parseFloat(document.getElementById('filter-r-val').value);
+
+        if (l_val <= 0 || c_val <= 0 || r_val <= 0) {
+            document.getElementById('primary-result-value').innerHTML = "Помилка";
+            return;
+        }
+
+        const f0 = 1 / (2 * Math.PI * Math.sqrt(l_val * c_val));
+        const z0 = Math.sqrt(l_val / c_val);
+        
+        // Exact calculations for LPF & HPF Transfer Function with load impedance
+        // Series L, shunt C (load R in parallel with C)
+        // H(s) = 1 / (s^2*L*C + s*L/R + 1)
+        // Q = R / Z0 = R / sqrt(L/C)
+        const q = r_val / z0;
+        const alpha = 1 / (2 * q); // Damping factor
+
+        let fc_exact = 0;
+        if (currentTab === 'lpf') {
+            // Solving for exact -3dB frequency of Low Pass filter:
+            // |H(f)|^2 = 1 / [(1-x^2)^2 + (x/Q)^2] = 1/2  where x = f/f0
+            // x^4 - (2 - 1/Q^2)*x^2 - 1 = 0
+            const q_factor_sq = q * q;
+            const term = 2 - (1 / q_factor_sq);
+            const y = (term + Math.sqrt(term * term + 4)) / 2;
+            const x = Math.sqrt(y);
+            fc_exact = f0 * x;
+        } else {
+            // Solving for exact -3dB frequency of High Pass filter:
+            // |H(f)|^2 = x^4 / [(1-x^2)^2 + (x/Q)^2] = 1/2 where x = f/f0
+            // x^4 + (2 - 1/Q^2)*x^2 - 1 = 0
+            const q_factor_sq = q * q;
+            const term = 2 - (1 / q_factor_sq);
+            const y = (-term + Math.sqrt(term * term + 4)) / 2;
+            const x = Math.sqrt(y);
+            fc_exact = f0 * x;
+        }
+
+        resultsCache.f0 = f0;
+        resultsCache.z0 = z0;
+        resultsCache.q = q;
+        resultsCache.alpha = alpha;
+        resultsCache.exactCutoff = fc_exact;
+        resultsCache.type = currentTab;
+        resultsCache.L = l_val;
+        resultsCache.C = c_val;
+        resultsCache.R = r_val;
+
+        // DOM Updates
+        document.getElementById('primary-result-value').innerHTML = formatNumber(fc_exact, "Гц");
+        document.getElementById('secondary-result-value').innerHTML = formatNumber(z0, "Ω");
+        
+        document.getElementById('val-damping').innerText = alpha.toFixed(4);
+        document.getElementById('val-q').innerText = q.toFixed(4);
+        document.getElementById('val-cutoff-exact').innerText = formatNumber(fc_exact, "Гц");
+
+        document.getElementById('secondary-result-label').innerText = "Хвильовий опір (Z₀)";
+
+        drawSchematic();
+        drawChart();
+    }
+
+    function drawSchematic() {
+        const container = document.getElementById('schematic-container');
+        
+        let l_text = formatNumber(resultsCache.L, "Гн");
+        let c_text = formatNumber(resultsCache.C, "Ф");
+        let r_text = formatNumber(resultsCache.R, "Ω");
+
+        let svgContent = "";
+
+        if (currentTab === 'resonance') {
+            // Parallel LC loop graphic representation
+            svgContent = `
+            <svg class="w-full max-w-[340px] h-[130px]" viewBox="0 0 340 130" xmlns="http://www.w3.org/2000/svg">
+                <!-- Source Lines -->
+                <line x1="20" y1="65" x2="100" y2="65" stroke="currentColor" stroke-width="2.5"/>
+                <line x1="100" y1="25" x2="100" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                
+                <!-- Inductor (Parallel Branch) -->
+                <!-- Connection line -->
+                <line x1="100" y1="25" x2="160" y2="25" stroke="currentColor" stroke-width="2.5"/>
+                <!-- Coil drawing -->
+                <path d="M 160 25 C 160 15, 175 15, 175 25 C 175 15, 190 15, 190 25 C 190 15, 205 15, 205 25 C 205 15, 220 15, 220 25" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+                <line x1="220" y1="25" x2="280" y2="25" stroke="currentColor" stroke-width="2.5"/>
+                <text x="190" y="5" font-size="10" font-weight="bold" fill="currentColor" text-anchor="middle">L: ${l_text}</text>
+
+                <!-- Capacitance (Parallel Branch) -->
+                <line x1="100" y1="105" x2="180" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                <!-- Plates -->
+                <line x1="180" y1="95" x2="180" y2="115" stroke="currentColor" stroke-width="3"/>
+                <line x1="188" y1="95" x2="188" y2="115" stroke="currentColor" stroke-width="3"/>
+                <line x1="188" y1="105" x2="280" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                <text x="184" y="127" font-size="10" font-weight="bold" fill="currentColor" text-anchor="middle">C: ${c_text}</text>
+
+                <!-- Output lines -->
+                <line x1="280" y1="25" x2="280" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                <line x1="280" y1="65" x2="320" y2="65" stroke="currentColor" stroke-width="2.5"/>
+
+                <!-- Circular nodes -->
+                <circle cx="100" cy="25" r="3.5" class="fill-blue-500"/>
+                <circle cx="100" cy="105" r="3.5" class="fill-blue-500"/>
+                <circle cx="280" cy="25" r="3.5" class="fill-blue-500"/>
+                <circle cx="280" cy="105" r="3.5" class="fill-blue-500"/>
+            </svg>`;
+        } else if (currentTab === 'lpf') {
+            // Low-pass Filter (Series L, shunt C)
+            svgContent = `
+            <svg class="w-full max-w-[340px] h-[130px]" viewBox="0 0 340 130" xmlns="http://www.w3.org/2000/svg">
+                <!-- IN Terminal -->
+                <line x1="10" y1="35" x2="50" y2="35" stroke="currentColor" stroke-width="2.5"/>
+                <circle cx="50" cy="35" r="3.5" class="fill-blue-500"/>
+                <text x="30" y="25" font-size="10" class="fill-slate-400">Вхід</text>
+
+                <!-- Series Inductor (Coils) -->
+                <path d="M 50 35 C 50 20, 68 20, 68 35 C 68 20, 86 20, 86 35 C 86 20, 104 20, 104 35 C 104 20, 122 20, 122 35" fill="none" stroke="currentColor" stroke-width="2.5"/>
+                <line x1="122" y1="35" x2="160" y2="35" stroke="currentColor" stroke-width="2.5"/>
+                <text x="86" y="15" font-size="10" font-weight="bold" fill="currentColor" text-anchor="middle">L: ${l_text}</text>
+
+                <!-- Central Connection Dot -->
+                <circle cx="160" cy="35" r="3.5" class="fill-blue-500"/>
+                <line x1="160" y1="35" x2="250" y2="35" stroke="currentColor" stroke-width="2.5"/>
+
+                <!-- Shunt Capacitor -->
+                <line x1="160" y1="35" x2="160" y2="55" stroke="currentColor" stroke-width="2.5"/>
+                <!-- Plates -->
+                <line x1="150" y1="55" x2="170" y2="55" stroke="currentColor" stroke-width="3"/>
+                <line x1="150" y1="63" x2="170" y2="63" stroke="currentColor" stroke-width="3"/>
+                <line x1="160" y1="63" x2="160" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                <text x="120" y="63" font-size="10" font-weight="bold" fill="currentColor">C: ${c_text}</text>
+
+                <!-- Load Resistor (R) -->
+                <circle cx="250" cy="35" r="3.5" class="fill-blue-500"/>
+                <line x1="250" y1="35" x2="250" y2="50" stroke="currentColor" stroke-width="2.5"/>
+                <rect x="240" y="50" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2.5"/>
+                <line x1="250" y1="80" x2="250" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                <text x="272" y="70" font-size="10" font-weight="bold" fill="currentColor">R: ${r_text}</text>
+
+                <!-- Ground Lines -->
+                <line x1="50" y1="105" x2="310" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                <!-- Earth Symbol -->
+                <line x1="160" y1="105" x2="160" y2="112" stroke="currentColor" stroke-width="2"/>
+                <line x1="152" y1="112" x2="168" y2="112" stroke="currentColor" stroke-width="2"/>
+                <line x1="156" y1="116" x2="164" y2="116" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="158" y1="120" x2="162" y2="120" stroke="currentColor" stroke-width="1"/>
+
+                <!-- OUT Terminal -->
+                <line x1="250" y1="35" x2="310" y2="35" stroke="currentColor" stroke-width="2.5"/>
+                <circle cx="310" cy="35" r="3.5" class="fill-blue-500"/>
+                <text x="290" y="25" font-size="10" class="fill-slate-400">Вихід</text>
+            </svg>`;
+        } else if (currentTab === 'hpf') {
+            // High-pass Filter (Series C, shunt L)
+            svgContent = `
+            <svg class="w-full max-w-[340px] h-[130px]" viewBox="0 0 340 130" xmlns="http://www.w3.org/2000/svg">
+                <!-- IN Terminal -->
+                <line x1="10" y1="35" x2="60" y2="35" stroke="currentColor" stroke-width="2.5"/>
+                <circle cx="60" cy="35" r="3.5" class="fill-blue-500"/>
+                <text x="30" y="25" font-size="10" class="fill-slate-400">Вхід</text>
+
+                <!-- Series Capacitor -->
+                <line x1="60" y1="35" x2="80" y2="35" stroke="currentColor" stroke-width="2.5"/>
+                <line x1="80" y1="22" x2="80" y2="48" stroke="currentColor" stroke-width="3"/>
+                <line x1="88" y1="22" x2="88" y2="48" stroke="currentColor" stroke-width="3"/>
+                <line x1="88" y1="35" x2="160" y2="35" stroke="currentColor" stroke-width="2.5"/>
+                <text x="84" y="15" font-size="10" font-weight="bold" fill="currentColor" text-anchor="middle">C: ${c_text}</text>
+
+                <!-- Central Connection Dot -->
+                <circle cx="160" cy="35" r="3.5" class="fill-blue-500"/>
+                <line x1="160" y1="35" x2="250" y2="35" stroke="currentColor" stroke-width="2.5"/>
+
+                <!-- Shunt Inductor -->
+                <line x1="160" y1="35" x2="160" y2="55" stroke="currentColor" stroke-width="2.5"/>
+                <path d="M 160 55 C 145 55, 145 70, 160 70 C 145 70, 145 85, 160 85 C 145 85, 145 100, 160 100" fill="none" stroke="currentColor" stroke-width="2.5"/>
+                <line x1="160" y1="100" x2="160" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                <text x="175" y="78" font-size="10" font-weight="bold" fill="currentColor">L: ${l_text}</text>
+
+                <!-- Load Resistor (R) -->
+                <circle cx="250" cy="35" r="3.5" class="fill-blue-500"/>
+                <line x1="250" y1="35" x2="250" y2="50" stroke="currentColor" stroke-width="2.5"/>
+                <rect x="240" y="50" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2.5"/>
+                <line x1="250" y1="80" x2="250" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                <text x="272" y="70" font-size="10" font-weight="bold" fill="currentColor">R: ${r_text}</text>
+
+                <!-- Ground Lines -->
+                <line x1="60" y1="105" x2="310" y2="105" stroke="currentColor" stroke-width="2.5"/>
+                <!-- Earth Symbol -->
+                <line x1="160" y1="105" x2="160" y2="112" stroke="currentColor" stroke-width="2"/>
+                <line x1="152" y1="112" x2="168" y2="112" stroke="currentColor" stroke-width="2"/>
+                <line x1="156" y1="116" x2="164" y2="116" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="158" y1="120" x2="162" y2="120" stroke="currentColor" stroke-width="1"/>
+
+                <!-- OUT Terminal -->
+                <line x1="250" y1="35" x2="310" y2="35" stroke="currentColor" stroke-width="2.5"/>
+                <circle cx="310" cy="35" r="3.5" class="fill-blue-500"/>
+                <text x="290" y="25" font-size="10" class="fill-slate-400">Вихід</text>
+            </svg>`;
+        }
+
+        container.innerHTML = svgContent;
+    }
+
+    let hoverFreq = null; // tracking user hover crosshair
+
+    function drawChart() {
+        const canvas = document.getElementById('bode-chart');
+        const ctx = canvas.getContext('2d');
+        const parentWidth = canvas.parentNode.clientWidth;
+        
+        // Match high density displays
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = parentWidth * dpr;
+        canvas.height = 256 * dpr;
+        canvas.style.width = parentWidth + 'px';
+        canvas.style.height = '256px';
+        ctx.scale(dpr, dpr);
+
+        const width = parentWidth;
+        const height = 256;
+
+        const padding = { top: 20, right: 20, bottom: 40, left: 50 };
+        const graphWidth = width - padding.left - padding.right;
+        const graphHeight = height - padding.top - padding.bottom;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Color Palette from Tailwind definitions
+        const gridColor = isDark ? 'rgba(51, 65, 85, 0.5)' : 'rgba(226, 232, 240, 0.8)';
+        const textMainColor = isDark ? '#94a3b8' : '#64748b';
+        const curveColor = currentTab === 'hpf' ? '#a855f7' : '#3b82f6'; // purple vs blue
+        const highlightColor = '#10b981'; // emerald green
+
+        // Define frequency range logarithmically (e.g., from f0 / 100 to f0 * 100)
+        const centerF = resultsCache.f0 > 0 ? resultsCache.f0 : 1000;
+        const minF = centerF / 100;
+        const maxF = centerF * 100;
+        const logMinF = Math.log10(minF);
+        const logMaxF = Math.log10(maxF);
+
+        // Define Y Axis ranges
+        let minY, maxY;
+        if (chartType === 'magnitude') {
+            minY = -60; // -60 dB
+            maxY = 10;  // +10 dB
+        } else {
+            minY = -180; // degrees
+            maxY = 180;
+        }
+
+        // Helper coordinate conversions
+        function getX(f) {
+            const logF = Math.log10(f);
+            return padding.left + ((logF - logMinF) / (logMaxF - logMinF)) * graphWidth;
+        }
+
+        function getF(x) {
+            const ratio = (x - padding.left) / graphWidth;
+            const logF = logMinF + ratio * (logMaxF - logMinF);
+            return Math.pow(10, logF);
+        }
+
+        function getY(val) {
+            return padding.top + (1 - (val - minY) / (maxY - minY)) * graphHeight;
+        }
+
+        // Draw grid lines (frequencies)
+        // Decades of 10x steps
+        const startDecade = Math.floor(logMinF);
+        const endDecade = Math.ceil(logMaxF);
+
+        ctx.font = '10px Inter, sans-serif';
+        ctx.fillStyle = textMainColor;
+        ctx.textAlign = 'center';
+
+        // Draw vertical frequency decades
+        for (let d = startDecade; d <= endDecade; d++) {
+            const f = Math.pow(10, d);
+            const x = getX(f);
+            if (x >= padding.left && x <= width - padding.right) {
+                ctx.beginPath();
+                ctx.strokeStyle = gridColor;
+                ctx.lineWidth = d === Math.round(Math.log10(centerF)) ? 1.5 : 1;
+                ctx.moveTo(x, padding.top);
+                ctx.lineTo(x, height - padding.bottom);
+                ctx.stroke();
+
+                // Decibel notation on x axis
+                ctx.fillText(formatNumber(f, "Hz"), x, height - padding.bottom + 15);
+            }
+        }
+
+        // Draw horizontal amplitude/phase lines
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        const step = chartType === 'magnitude' ? 10 : 45;
+        for (let val = minY; val <= maxY; val += step) {
+            const y = getY(val);
+            if (y >= padding.top && y <= height - padding.bottom) {
+                ctx.beginPath();
+                ctx.strokeStyle = gridColor;
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(width - padding.right, y);
+                ctx.stroke();
+
+                ctx.fillText(`${val}${chartType === 'magnitude' ? ' дБ' : '°'}`, padding.left - 8, y);
+            }
+        }
+
+        // Transfer Functions Evaluation
+        function getResponseAt(freq) {
+            const w = 2 * Math.PI * freq;
+            const L = resultsCache.L;
+            const C = resultsCache.C;
+            const R = resultsCache.R;
+
+            if (currentTab === 'resonance') {
+                // LC series/parallel resonant impedance peak normalized
+                // Simple representation of an ideal resonance curve
+                const f0 = resultsCache.f0;
+                const Q = resultsCache.q > 0 ? resultsCache.q : 1;
+                const ratio = freq / f0;
+                const denom = Math.sqrt(Math.pow(1 - ratio*ratio, 2) + Math.pow(ratio/Q, 2));
+                
+                const mag = ratio / (denom || 1e-12);
+                let db = 20 * Math.log10(mag);
+                if (db > 6) db = 6; // Limit resonance gain cap
+                
+                let phase = Math.atan2(1 - ratio*ratio, ratio / Q) * (180 / Math.PI);
+                return { mag: db, phase };
+            }
+
+            if (currentTab === 'lpf') {
+                // LPF Transfer Function: H(w) = 1 / ((1 - w^2*L*C) + j*w*L/R)
+                const real = 1 - (w * w * L * C);
+                const imag = (w * L) / R;
+                const magnitude = 1 / Math.sqrt(real * real + imag * imag);
+                const db = 20 * Math.log10(magnitude || 1e-12);
+                const phase = -Math.atan2(imag, real) * (180 / Math.PI);
+                return { mag: db, phase };
+            } else {
+                // HPF Transfer Function: H(w) = w^2*L*C / ((w^2*L*C - 1) + j*w*L/R) (Wait, simplified matched version)
+                // Real & imag components
+                const real_denom = (w * w * L * C) - 1;
+                const imag_denom = (w * L) / R;
+                const magnitude = (w * w * L * C) / Math.sqrt(real_denom * real_denom + imag_denom * imag_denom);
+                const db = 20 * Math.log10(magnitude || 1e-12);
+                const phase = (Math.PI/2 - Math.atan2(imag_denom, real_denom)) * (180 / Math.PI);
+                return { mag: db, phase };
+            }
+        }
+
+        // Draw the Response Curves
+        // Iterate horizontal pixels to draw curves smoothly
+        ctx.beginPath();
+        ctx.strokeStyle = curveColor;
+        ctx.lineWidth = 2.5;
+
+        let started = false;
+        for (let x = padding.left; x <= width - padding.right; x++) {
+            const freq = getF(x);
+            const resp = getResponseAt(freq);
+            const val = chartType === 'magnitude' ? resp.mag : resp.phase;
+            const y = getY(val);
+
+            // Constraint drawing bounds inside frame
+            const constrainedY = Math.max(padding.top, Math.min(height - padding.bottom, y));
+
+            if (!started) {
+                ctx.moveTo(x, constrainedY);
+                started = true;
+            } else {
+                ctx.lineTo(x, constrainedY);
+            }
+        }
+        ctx.stroke();
+
+        // Highlight the Cutoff/Resonance frequency point
+        const ptFreq = resultsCache.exactCutoff > 0 ? resultsCache.exactCutoff : resultsCache.f0;
+        const ptX = getX(ptFreq);
+        const ptResp = getResponseAt(ptFreq);
+        const ptVal = chartType === 'magnitude' ? ptResp.mag : ptResp.phase;
+        const ptY = getY(ptVal);
+
+        if (ptX >= padding.left && ptX <= width - padding.right) {
+            // Drawing Vertical Dot reference line
+            ctx.beginPath();
+            ctx.strokeStyle = highlightColor;
+            ctx.setLineDash([4, 4]);
+            ctx.moveTo(ptX, padding.top);
+            ctx.lineTo(ptX, height - padding.bottom);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw glowing circle point
+            ctx.beginPath();
+            ctx.arc(ptX, ptY, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = highlightColor;
+            ctx.fill();
+            ctx.strokeStyle = isDark ? '#1e293b' : '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        // Draw user interactive Hover Line
+        if (hoverFreq && hoverFreq >= minF && hoverFreq <= maxF) {
+            const hx = getX(hoverFreq);
+            const hResp = getResponseAt(hoverFreq);
+            const hVal = chartType === 'magnitude' ? hResp.mag : hResp.phase;
+            const hy = getY(hVal);
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)';
+            ctx.lineWidth = 1;
+            ctx.moveTo(hx, padding.top);
+            ctx.lineTo(hx, height - padding.bottom);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(hx, hy, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = '#3b82f6';
+            ctx.fill();
+            ctx.stroke();
+
+            // Populate overlay tooltip positioning
+            const tooltip = document.getElementById('chart-tooltip');
+            tooltip.style.left = (hx + 10) + 'px';
+            tooltip.style.top = (hy - 30) + 'px';
+            tooltip.classList.remove('hidden');
+            tooltip.innerHTML = `
+                <div><span class="text-slate-400">Частота:</span> <strong>${formatNumber(hoverFreq, "Hz")}</strong></div>
+                <div><span class="text-slate-400">Значення:</span> <strong>${hVal.toFixed(2)}${chartType === 'magnitude' ? ' дБ' : '°'}</strong></div>
+            `;
+        } else {
+            document.getElementById('chart-tooltip').classList.add('hidden');
+        }
+
+        // Outer borders
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(padding.left, padding.top, graphWidth, graphHeight);
+    }
+
+    // Register Bode Plot interactive event listeners
+    function setupChartInteractions() {
+        const canvas = document.getElementById('bode-chart');
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            
+            const paddingLeft = 50;
+            const paddingRight = 20;
+            const graphWidth = rect.width - paddingLeft - paddingRight;
+
+            if (mouseX >= paddingLeft && mouseX <= rect.width - paddingRight) {
+                // Linear pixel conversion inside logarithmic domain
+                const logMin = Math.log10(resultsCache.f0 / 100);
+                const logMax = Math.log10(resultsCache.f0 * 100);
+                const ratio = (mouseX - paddingLeft) / graphWidth;
+                const logF = logMin + ratio * (logMax - logMin);
+                hoverFreq = Math.pow(10, logF);
+            } else {
+                hoverFreq = null;
+            }
+            drawChart();
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            hoverFreq = null;
+            drawChart();
+        });
+    }
+
+    function copyToClipboard() {
+        let textToCopy = `=== Розрахунок LC-фільтра ===\n`;
+        textToCopy += `Режим: ${currentTab === 'resonance' ? 'Резонансний LC-контур' : currentTab === 'lpf' ? 'Фільтр низьких частот (ФНЧ)' : 'Фільтр високих частот (ФВЧ)'}\n`;
+        textToCopy += `Номінал L: ${formatNumber(resultsCache.L, "Гн")}\n`;
+        textToCopy += `Номінал C: ${formatNumber(resultsCache.C, "Ф")}\n`;
+        textToCopy += `Резонансна f0: ${formatNumber(resultsCache.f0, "Гц")}\n`;
+        if (currentTab !== 'resonance') {
+            textToCopy += `Опір навантаження R: ${formatNumber(resultsCache.R, "Ω")}\n`;
+            textToCopy += `Частота зрізу (Fc, -3дБ): ${formatNumber(resultsCache.exactCutoff, "Гц")}\n`;
+            textToCopy += `Добротність Q: ${resultsCache.q.toFixed(4)}\n`;
+        }
+        textToCopy += `Хвильовий опір Z0: ${formatNumber(resultsCache.z0, "Ω")}\n`;
+
+        const dummyTextArea = document.createElement("textarea");
+        document.body.appendChild(dummyTextArea);
+        dummyTextArea.value = textToCopy;
+        dummyTextArea.select();
+        
+        try {
+            document.execCommand('copy');
+            alert("Результати скопійовано в буфер обміну!");
+        } catch (err) {
+            alert("Не вдалося скопіювати автоматично.");
+        }
+        document.body.removeChild(dummyTextArea);
+    }
+
+    // App Initialize Bootstrapper
+    window.onload = function() {
+        initTheme();
+        switchTab('resonance');
+        setupChartInteractions();
+    };
+
+    // Keep layout responsive on viewport resizing
+    window.onresize = function() {
+        drawChart();
+    };
+</script>
+
+</body>
+</html>

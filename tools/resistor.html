@@ -1,0 +1,320 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кольорове маркування радіодеталей</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 500px;
+            box-sizing: border-box;
+        }
+        h2 {
+            margin-top: 0;
+            color: #1a1a1a;
+            text-align: center;
+            border-bottom: 2px solid #eaeaea;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+            font-family: Arial, Helvetica, sans-serif;
+            box-sizing: border-box;
+            width: 100%;
+            background-color: #fafafa;
+        }
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: normal;
+            font-size: 15px;
+        }
+        .result-box {
+            background: #f0fdf4;
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        .schematic {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #fafafa;
+            border-radius: 8px;
+            border: 1px dashed #ddd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .band-selectors {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .band-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .band-label {
+            width: 110px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .color-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid #999;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Кольорове маркування</h2>
+
+    <div class="form-group">
+        <label>Оберіть тип компонента:</label>
+        <div class="radio-group">
+            <label class="radio-label">
+                <input type="radio" name="compType" value="res4" checked onchange="changeCompType()"> 
+                Резистор (4 кольорові смуги)
+            </label>
+            <label class="radio-label">
+                <input type="radio" name="compType" value="res5" onchange="changeCompType()"> 
+                Резистор (5 кольорових смуг)
+            </label>
+            <label class="radio-label">
+                <input type="radio" name="compType" value="ind4" onchange="changeCompType()"> 
+                Індуктивність / Дросель (4 смуги, мкГн)
+            </label>
+        </div>
+    </div>
+
+    <div class="schematic" id="color-visual-area">
+        <!-- SVG рендериться тут -->
+    </div>
+
+    <div class="band-selectors" id="selectors-container">
+        <!-- Селектори кольорів створюються динамічно -->
+    </div>
+
+    <div class="result-box">
+        <strong>Визначений номінал:</strong>
+        <div id="color-result-text" style="margin-top: 8px; font-weight: bold; color: #10b981; font-size: 20px;">
+            --
+        </div>
+    </div>
+</div>
+
+<script>
+    const colors = [
+        { name: "Чорний", val: 0, mult: 1, tol: null, hex: "#000000" },
+        { name: "Коричневий", val: 1, mult: 10, tol: 1, hex: "#8B4513" },
+        { name: "Червоний", val: 2, mult: 100, tol: 2, hex: "#FF0000" },
+        { name: "Помаранчевий", val: 3, mult: 1000, tol: null, hex: "#FF8C00" }, // Оновлений чіткий помаранчевий
+        { name: "Жовтий", val: 4, mult: 10000, tol: null, hex: "#FFD700" },
+        { name: "Зелений", val: 5, mult: 100000, tol: 0.5, hex: "#228B22" },
+        { name: "Синій", val: 6, mult: 1000000, tol: 0.25, hex: "#0000FF" },
+        { name: "Фіолетовий", val: 7, mult: 10000000, tol: 0.1, hex: "#8A2BE2" },
+        { name: "Сірий", val: 8, mult: null, tol: 0.05, hex: "#808080" },
+        { name: "Білий", val: 9, mult: null, tol: null, hex: "#FFFFFF" },
+        { name: "Золотий", val: null, mult: 0.1, tol: 5, hex: "#D4AF37" },
+        { name: "Срібний", val: null, mult: 0.01, tol: 10, hex: "#C0C0C0" }
+    ];
+
+    // Початкові значення
+    let currentBands = { b1: 1, b2: 0, b3: 2, b4: 10, b5: null };
+
+    function changeCompType() {
+        const type = document.querySelector('input[name="compType"]:checked').value;
+        const container = document.getElementById('selectors-container');
+        container.innerHTML = '';
+
+        if (type === 'res4' || type === 'ind4') {
+            currentBands = { b1: 2, b2: 2, b3: 1, b4: 10 }; // Червоний-Червоний-Коричневий-Золотий (220 Ом / 22 мкГн)
+            createSelector("1-ша цифра", "b1", 'digit');
+            createSelector("2-га цифра", "b2", 'digit');
+            createSelector("Множник", "b3", 'mult');
+            createSelector("Допуск", "b4", 'tol');
+        } else if (type === 'res5') {
+            currentBands = { b1: 1, b2: 0, b3: 0, b4: 1, b5: 10 }; // Коричневий-Чорний-Чорний-Коричневий-Золотий (1 кОм)
+            createSelector("1-ша цифра", "b1", 'digit');
+            createSelector("2-га цифра", "b2", 'digit');
+            createSelector("3-тя цифра", "b3", 'digit');
+            createSelector("Множник", "b4", 'mult');
+            createSelector("Допуск", "b5", 'tol');
+        }
+        drawColorComponent();
+        calculateColor();
+    }
+
+    function createSelector(labelText, key, type) {
+        const container = document.getElementById('selectors-container');
+        const div = document.createElement('div');
+        div.className = 'band-row';
+
+        const label = document.createElement('div');
+        label.className = 'band-label';
+        label.innerText = labelText;
+
+        const preview = document.createElement('div');
+        preview.className = 'color-preview';
+        preview.id = `preview-${key}`;
+
+        const select = document.createElement('select');
+        select.id = `select-${key}`;
+        select.onchange = (e) => {
+            currentBands[key] = parseInt(e.target.value);
+            updatePreviewColor(key);
+            drawColorComponent();
+            calculateColor();
+        };
+
+        colors.forEach((c, idx) => {
+            if (type === 'digit' && c.val === null) return;
+            if (type === 'mult' && c.mult === null) return;
+            if (type === 'tol' && c.tol === null) return;
+
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.innerText = c.name;
+            if (idx === currentBands[key]) opt.selected = true;
+            select.appendChild(opt);
+        });
+
+        div.appendChild(label);
+        div.appendChild(preview);
+        div.appendChild(select);
+        container.appendChild(div);
+        updatePreviewColor(key);
+    }
+
+    function updatePreviewColor(key) {
+        const preview = document.getElementById(`preview-${key}`);
+        if (preview) preview.style.backgroundColor = colors[currentBands[key]].hex;
+    }
+
+    function drawColorComponent() {
+        const type = document.querySelector('input[name="compType"]:checked').value;
+        const area = document.getElementById('color-visual-area');
+        
+        const isInductor = type === 'ind4';
+        const bodyColor = isInductor ? "#8cd9ad" : "#f1d4a0"; // М'ятно-зелений для дроселя, класичний бежевий для резистора
+        const cX = 120, cY = 50;
+
+        let bands = [];
+        if (type === 'res4' || type === 'ind4') {
+            bands = [
+                { color: colors[currentBands.b1].hex, x: cX - 35 },
+                { color: colors[currentBands.b2].hex, x: cX - 15 },
+                { color: colors[currentBands.b3].hex, x: cX + 5 },
+                { color: colors[currentBands.b4].hex, x: cX + 25 }
+            ];
+        } else {
+            bands = [
+                { color: colors[currentBands.b1].hex, x: cX - 45 },
+                { color: colors[currentBands.b2].hex, x: cX - 25 },
+                { color: colors[currentBands.b3].hex, x: cX - 5 },
+                { color: colors[currentBands.b4].hex, x: cX + 15 },
+                { color: colors[currentBands.b5].hex, x: cX + 35 }
+            ];
+        }
+
+        let bandsMarkup = bands.map(b => 
+            `<rect x="${b.x}" y="${cY - 18}" width="6" height="36" fill="${b.color}" stroke="#333" stroke-width="0.5"/>`
+        ).join('');
+
+        const bodyPath = isInductor 
+            ? `M ${cX-50} ${cY-10} Q ${cX-50} ${cY-18} ${cX-35} ${cY-18} L ${cX+35} ${cY-18} Q ${cX+50} ${cY-18} ${cX+50} ${cY-10} L ${cX+50} ${cY+10} Q ${cX+50} ${cY+18} ${cX+35} ${cY+18} L ${cX-35} ${cY+18} Q ${cX-50} ${cY+18} ${cX-50} ${cY+10} Z`
+            : `M ${cX-55} ${cY-15} L ${cX+55} ${cY-15} L ${cX+55} ${cY+15} L ${cX-55} ${cY+15} Z`;
+
+        area.innerHTML = `
+            <svg width="240" height="100" viewBox="0 0 240 100" style="font-family: Arial, sans-serif;">
+                <!-- Виводи деталі -->
+                <path d="M 10 50 L 230 50" stroke="#b5b5b5" stroke-width="3"/>
+                <!-- Тіло компонента -->
+                <path d="${bodyPath}" fill="${bodyColor}" stroke="#222" stroke-width="2"/>
+                <!-- Кольорові смужки -->
+                ${bandsMarkup}
+            </svg>
+        `;
+    }
+
+    function calculateColor() {
+        const type = document.querySelector('input[name="compType"]:checked').value;
+        const resultDiv = document.getElementById('color-result-text');
+
+        if (type === 'res4' || type === 'ind4') {
+            const d1 = colors[currentBands.b1].val;
+            const d2 = colors[currentBands.b2].val;
+            const mult = colors[currentBands.b3].mult;
+            const tol = colors[currentBands.b4].tol;
+
+            const baseVal = (d1 * 10 + d2) * mult;
+
+            if (type === 'res4') {
+                let rStr = baseVal >= 1000000 ? `${(baseVal / 1000000).toFixed(2)} МОм` : baseVal >= 1000 ? `${(baseVal / 1000).toFixed(2)} кОм` : `${baseVal} Ом`;
+                resultDiv.innerHTML = `Опір: ${rStr} ±${tol}%`;
+            } else {
+                let lStr = baseVal >= 1000 ? `${(baseVal / 1000).toFixed(2)} мГн` : `${baseVal} мкГн`;
+                resultDiv.innerHTML = `Індуктивність: ${lStr} ±${tol}%`;
+            }
+        } else if (type === 'res5') {
+            const d1 = colors[currentBands.b1].val;
+            const d2 = colors[currentBands.b2].val;
+            const d3 = colors[currentBands.b3].val;
+            const mult = colors[currentBands.b4].mult;
+            const tol = colors[currentBands.b5].tol;
+
+            const baseVal = (d1 * 100 + d2 * 10 + d3) * mult;
+            let rStr = baseVal >= 1000000 ? `${(baseVal / 1000000).toFixed(2)} МОм` : baseVal >= 1000 ? `${(baseVal / 1000).toFixed(2)} кОм` : `${baseVal} Ом`;
+            resultDiv.innerHTML = `Опір: ${rStr} ±${tol}%`;
+        }
+    }
+
+    // Запуск при завантаженні сторінки
+    changeCompType();
+</script>
+
+</body>
+</html>

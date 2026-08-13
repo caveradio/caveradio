@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Візуальний таймер (до 10 хвилин)</title>
+    <style>
+        :root {
+            --bg-color: #f9fafb;
+            --panel-bg: #ffffff;
+            --text-color: #1f2937;
+            --grid-bg: #edf2f7;
+            --rect-default: #cbd5e1;
+            --rect-active: #10b981;
+            --border-color: #e5e7eb;
+            --accent: #3b82f6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        header {
+            width: 100%;
+            max-width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--panel-bg);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+            box-sizing: border-box;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input[type="number"] {
+            background: #fff;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 55px;
+            outline: none;
+            text-align: center;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background-color: #e5e7eb;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        button#stopBtn {
+            background-color: #ef4444;
+        }
+
+        .status-display {
+            font-family: 'SF Mono', Consolas, Menlo, Courier, monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent);
+            background: #eff6ff;
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+
+        .scanner-container {
+            display: grid;
+            grid-template-columns: repeat(30, minmax(0, 1fr));
+            gap: 6px;
+            background-color: var(--grid-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-sizing: border-box;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .sector {
+            width: 26px;
+            height: 26px;
+            background-color: var(--rect-default);
+            border-radius: 4px;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .sector.scanned {
+            background-color: var(--rect-active);
+            transform: scale(1.05);
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="controls">
+            <div class="control-group">
+                <label for="minutesInput">Хв:</label>
+                <!-- Збільшено max до 10 -->
+                <input type="number" id="minutesInput" min="0" max="10" value="5">
+            </div>
+            <div class="control-group">
+                <label for="secondsInput">Сек:</label>
+                <input type="number" id="secondsInput" min="0" max="59" value="0">
+            </div>
+            <button id="startBtn">Старт</button>
+            <button id="stopBtn" disabled>Стоп</button>
+        </div>
+        <div class="status-display" id="statusDisplay">05:00</div>
+    </header>
+
+    <div class="scanner-container" id="scannerContainer"></div>
+
+    <script>
+        const minutesInput = document.getElementById('minutesInput');
+        const secondsInput = document.getElementById('secondsInput');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusDisplay = document.getElementById('statusDisplay');
+        const container = document.getElementById('scannerContainer');
+
+        let totalSeconds = 300;
+        let currentSecond = 0;
+        let timerInterval = null;
+        let sectors = [];
+
+        function validateTimeInputs() {
+            let min = parseInt(minutesInput.value) || 0;
+            let sec = parseInt(secondsInput.value) || 0;
+
+            let total = min * 60 + sec;
+            
+            // Збільшено ліміт до 10 хвилин (600 секунд)
+            if (total > 600) {
+                minutesInput.value = 10;
+                secondsInput.value = 0;
+                total = 600;
+            } else if (total < 1) {
+                minutesInput.value = 0;
+                secondsInput.value = 1;
+                total = 1;
+            } else {
+                minutesInput.value = Math.floor(total / 60);
+                secondsInput.value = total % 60;
+            }
+
+            return total;
+        }
+
+        function initGrid() {
+            container.innerHTML = '';
+            sectors = [];
+            totalSeconds = validateTimeInputs();
+            currentSecond = 0;
+            
+            for (let i = 0; i < totalSeconds; i++) {
+                const sector = document.createElement('div');
+                sector.classList.add('sector');
+                container.appendChild(sector);
+                sectors.push(sector);
+            }
+            updateStatusText(totalSeconds);
+        }
+
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60).toString().padStart(2, '0');
+            const s = (sec % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function updateStatusText(secLeft) {
+            statusDisplay.textContent = formatTime(secLeft);
+        }
+
+        minutesInput.addEventListener('input', () => {
+            if (!timerInterval) initGrid();
+        });
+
+        secondsInput.addEventListener('input', () => {
+            if (!timerInterval) initGrid();
+        });
+
+        startBtn.addEventListener('click', () => {
+            if (timerInterval) return;
+
+            if (currentSecond >= totalSeconds) {
+                initGrid();
+            }
+
+            minutesInput.disabled = true;
+            secondsInput.disabled = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            timerInterval = setInterval(() => {
+                if (currentSecond < totalSeconds) {
+                    sectors[currentSecond].classList.add('scanned');
+                    currentSecond++;
+                    updateStatusText(totalSeconds - currentSecond);
+                }
+
+                if (currentSecond >= totalSeconds) {
+                    stopTimer();
+                    statusDisplay.textContent = "Готово";
+                }
+            }, 1000);
+        });
+
+        stopBtn.addEventListener('click', () => {
+            stopTimer();
+            statusDisplay.textContent = "Пауза: " + formatTime(totalSeconds - currentSecond);
+        });
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            minutesInput.disabled = false;
+            secondsInput.disabled = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+
+        initGrid();
+    </script>
+</body>
+</html>

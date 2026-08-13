@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Конвертер Частоти та Довжини Хвилі</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --primary-color: #2563eb;
+            --border-color: #e5e7eb;
+            --accent-bg: #f8fafc;
+            --input-bg: #ffffff;
+            --readonly-bg: #f1f5f9;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #0f172a;
+                --card-bg: #1e293b;
+                --text-color: #f8fafc;
+                --border-color: #334155;
+                --accent-bg: #0f172a;
+                --input-bg: #0f172a;
+                --readonly-bg: #334155;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 480px;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Перемикач вкладок */
+        .tabs {
+            display: flex;
+            background-color: var(--accent-bg);
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: none;
+            color: var(--text-color);
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0.7;
+        }
+
+        .tab-btn.active {
+            background-color: var(--primary-color);
+            color: #ffffff;
+            opacity: 1;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="number"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* Стиль для поля з результатом */
+        input[readonly] {
+            background-color: var(--readonly-bg);
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        select {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .arrow-down {
+            text-align: center;
+            margin: 8px 0;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .info-box {
+            background-color: var(--accent-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 20px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Конвертер хвильових величин</h1>
+
+    <!-- Вкладки -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('freqToWave')">Частота ➔ Довжина</button>
+        <button class="tab-btn" onclick="switchTab('waveToFreq')">Довжина ➔ Частота</button>
+    </div>
+
+    <!-- Вкладка 1: Частота -> Довжина хвилі -->
+    <div id="freqToWave" class="tab-content active">
+        <div class="input-group">
+            <label for="f1_input">Частота (вхідне значення)</label>
+            <div class="control-row">
+                <input type="number" id="f1_input" placeholder="Введіть частоту" step="any" oninput="calcFreqToWave()">
+                <select id="f1_unit" onchange="calcFreqToWave()">
+                    <option value="1">Гц</option>
+                    <option value="1e3">кГц</option>
+                    <option value="1e6" selected>МГц</option>
+                    <option value="1e9">ГГц</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="arrow-down">↓</div>
+
+        <div class="input-group">
+            <label for="w1_result">Довжина хвилі (результат)</label>
+            <div class="control-row">
+                <input type="number" id="w1_result" readonly placeholder="Результат">
+                <select id="w1_unit" onchange="calcFreqToWave()">
+                    <option value="1e-3">мм</option>
+                    <option value="1e-2">см</option>
+                    <option value="1" selected>м</option>
+                    <option value="1e3">км</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Вкладка 2: Довжина хвилі -> Частота -->
+    <div id="waveToFreq" class="tab-content">
+        <div class="input-group">
+            <label for="w2_input">Довжина хвилі (вхідне значення)</label>
+            <div class="control-row">
+                <input type="number" id="w2_input" placeholder="Введіть довжину" step="any" oninput="calcWaveToFreq()">
+                <select id="w2_unit" onchange="calcWaveToFreq()">
+                    <option value="1e-3">мм</option>
+                    <option value="1e-2">см</option>
+                    <option value="1" selected>м</option>
+                    <option value="1e3">км</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="arrow-down">↓</div>
+
+        <div class="input-group">
+            <label for="f2_result">Частота (результат)</label>
+            <div class="control-row">
+                <input type="number" id="f2_result" readonly placeholder="Результат">
+                <select id="f2_unit" onchange="calcWaveToFreq()">
+                    <option value="1">Гц</option>
+                    <option value="1e3">кГц</option>
+                    <option value="1e6" selected>МГц</option>
+                    <option value="1e9">ГГц</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box">
+        <strong>Формула розрахунку:</strong><br>
+        Швидкість світла (c) ≈ 299 792 458 м/с.<br>
+        • Довжина хвилі = c / Частота<br>
+        • Частота = c / Довжина хвилі
+    </div>
+</div>
+
+<script>
+    const C = 299792458; // Швидкість світла
+
+    // Перемикання вкладок
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+        document.getElementById(tabId).classList.add('active');
+        
+        // Підсвічуємо активну кнопку
+        if (tabId === 'freqToWave') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        }
+    }
+
+    // Розрахунок: Частота -> Довжина
+    function calcFreqToWave() {
+        const val = parseFloat(document.getElementById('f1_input').value);
+        const fUnit = parseFloat(document.getElementById('f1_unit').value);
+        const wUnit = parseFloat(document.getElementById('w1_unit').value);
+        const resultInput = document.getElementById('w1_result');
+
+        if (isNaN(val) || val <= 0) {
+            resultInput.value = '';
+            return;
+        }
+
+        const freqHz = val * fUnit;
+        const wavelengthMeters = C / freqHz;
+        
+        resultInput.value = Number((wavelengthMeters / wUnit).toPrecision(6));
+    }
+
+    // Розрахунок: Довжина -> Частота
+    function calcWaveToFreq() {
+        const val = parseFloat(document.getElementById('w2_input').value);
+        const wUnit = parseFloat(document.getElementById('w2_unit').value);
+        const fUnit = parseFloat(document.getElementById('f2_unit').value);
+        const resultInput = document.getElementById('f2_result');
+
+        if (isNaN(val) || val <= 0) {
+            resultInput.value = '';
+            return;
+        }
+
+        const waveMeters = val * wUnit;
+        const freqHz = C / waveMeters;
+
+        resultInput.value = Number((freqHz / fUnit).toPrecision(6));
+    }
+</script>
+
+</body>
+</html>
